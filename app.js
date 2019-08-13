@@ -1,20 +1,20 @@
 const express = require('express');
-var exphbs  = require('express-handlebars');
+var exphbs = require('express-handlebars');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-
+const methodOverride = require('method-override')
 const app = express();
 
 //Connect to mongoose
-mongoose.connect('mongodb://localhost/vidjot-dev',{
-    useNewUrlParser: 'main'
-})
-.then(() =>{
-    console.log('MongoDb connected...')
-})
-.catch(err =>{
-    console.log(err)
-})
+mongoose.connect('mongodb://localhost/vidjot-dev', {
+        useNewUrlParser: 'main'
+    })
+    .then(() => {
+        console.log('MongoDb connected...')
+    })
+    .catch(err => {
+        console.log(err)
+    })
 
 //Load Idea Model
 require('./models/Idea');
@@ -28,9 +28,14 @@ app.engine('handlebars', exphbs({
 app.set('view engine', 'handlebars');
 
 //Body parser middleWare
-app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.urlencoded({
+    extended: false
+}));
 //parse application/json
-app.use(bodyParser.json())
+app.use(bodyParser.json());
+
+//Method Override middleWare
+app.use(methodOverride('_method'))
 
 //Index route
 app.get('/', (req, res) => {
@@ -48,12 +53,14 @@ app.get('/about', (req, res) => {
 //Idea Index Page
 app.get('/ideas', (req, res) => {
     Idea.find({})
-    .sort({date: 'desc'})
-    .then(ideas => {
-        res.render('ideas/index',{
-            ideas
+        .sort({
+            date: 'desc'
         })
-    })
+        .then(ideas => {
+            res.render('ideas/index', {
+                ideas
+            })
+        })
 })
 
 // Add idea Form
@@ -63,36 +70,76 @@ app.get('/ideas/add', (req, res) => {
 
 // Edit idea Form
 app.get('/ideas/edit/:id', (req, res) => {
-    res.render('ideas/edit')
+    Idea.findOne({
+            _id: req.params.id
+        })
+        .then(idea => {
+            res.render('ideas/edit', {
+                idea
+            })
+        })
 })
 
 //Process Form
-app.post('/ideas',(req, res) =>{
+app.post('/ideas', (req, res) => {
     let errors = [];
-    if(!req.body.title){
-        errors.push({text: 'Please add title'});
+    if (!req.body.title) {
+        errors.push({
+            text: 'Please add title'
+        });
     }
-    if(!req.body.details){
-        errors.push({text:'Please add some details'})
+    if (!req.body.details) {
+        errors.push({
+            text: 'Please add some details'
+        })
     }
-    if(errors.length > 0){
-        res.render('ideas/add',{
+    if (errors.length > 0) {
+        res.render('ideas/add', {
             errors,
             title: req.body.title,
             details: req.body.details
         })
-    }else{
+    } else {
         let newUser = {
             title: req.body.title,
             details: req.body.details
         }
         new Idea(newUser)
-        .save()
-        .then(idea =>{
-            res.redirect('/idea')
-        })
+            .save()
+            .then(idea => {
+                res.redirect('/idea')
+            })
     }
 })
+
+// Edit Form process
+app.put('/ideas/:id', (req, res) => {
+    Idea.findOne({
+            _id: req.params.id
+        })
+        .then(idea => {
+            // new values
+            idea.title = req.body.title;
+            idea.details = req.body.details;
+
+            idea.save()
+                .then(idea => {
+                    res.redirect('/ideas');
+                })
+        });
+});
+
+// Delete Idea
+app.delete('/ideas/:id', (req, res) => {
+    Idea.remove({
+            _id: req.params.id
+        })
+        .then(() => {
+            res.redirect('/ideas');
+        });
+});
+
+
 
 const port = 5000;
 
